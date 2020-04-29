@@ -9,7 +9,7 @@ import sqlite3
 import pyautogui
 import subprocess
 import RPi.GPIO as GPIO
-#============================================ ATM_main  abril 23  2020   =======
+#============================================ ATM_main  abril 28  2020   =======
 class Window(QtGui.QWidget):
     def __init__(self):
         super(Window, self).__init__()
