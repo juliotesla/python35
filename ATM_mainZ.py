@@ -10,6 +10,8 @@ import pyautogui
 import subprocess
 import RPi.GPIO as GPIO
 #============================================ ATM_main  abril 28  2020   =======
+# git config --global user.name 'juliotesla'
+
 class Window(QtGui.QWidget):
     def __init__(self):
         super(Window, self).__init__()
