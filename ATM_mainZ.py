@@ -14,6 +14,8 @@ import RPi.GPIO as GPIO
 # git config --global user.email'flojulio@gmail.com'
 # git config credential.helper  store
 # git config --global credential.helper store
+# git clone https://github.com/juliotesla/python35.git
+
 
 
 class Window(QtGui.QWidget):
