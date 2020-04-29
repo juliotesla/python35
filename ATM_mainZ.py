@@ -11,6 +11,8 @@ import subprocess
 import RPi.GPIO as GPIO
 #============================================ ATM_main  abril 28  2020   =======
 # git config --global user.name 'juliotesla'
+# git config --global user.email'flojulio@gmail.com'
+# git config credential.helper  store
 
 class Window(QtGui.QWidget):
     def __init__(self):
