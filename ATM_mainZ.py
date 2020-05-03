@@ -369,7 +369,51 @@ class Window(QtGui.QWidget):
         palette.setColor(QtGui.QPalette.Foreground,QtCore.Qt.red)
         self.setWindowIcon(QtGui.QIcon('01072000.gif'))
         font = QtGui.QFont("Times",14,QtGui.QFont.Bold,True)
-      
+        #=============================================
+        fontLblAviso2= QtGui.QFont("Arial",34,QtGui.QFont.Bold,False)#========== Renglon # 2 de avisos
+        self.lblAviso2=QtGui.QLabel(self)
+        self.lblAviso2.setFont(fontLblAviso2)
+        self.lblAviso2.setPalette(palette)
+        self.lblAviso2.move(250,480)
+        self.lblAviso2.setText('                                                                       ')
+        #=============================================
+        fontLblAviso3= QtGui.QFont("Arial",34,QtGui.QFont.Bold,False)#========== Renglon # 3 de avisos
+        self.lblAviso3=QtGui.QLabel(self)
+        self.lblAviso3.setFont(fontLblAviso3)
+        self.lblAviso3.setPalette(palette)
+        self.lblAviso3.move(250,535)
+        self.lblAviso3.setText('                                                                   ') 
+        #=============================================
+        fontLblAviso4= QtGui.QFont("Arial",14,QtGui.QFont.Bold,False)#========== Renglon # 4 de avisos
+        self.lblAviso4=QtGui.QLabel(self)
+        self.lblAviso4.setFont(fontLblAviso4)
+        self.lblAviso4.setPalette(palette)
+        self.lblAviso4.move(50,570)
+        self.lblAviso4.setText('                                                                   ') 
+        
+
+        self.timer3=QtCore.QTimer(self)
+        self.timer3.timeout.connect(self.limpiaAvisosDos)
+        
+        self.lblFotoError = QtGui.QLabel(self) 
+        pixmapER = QtGui.QPixmap('error.jpg')
+        pixmapER = pixmapER.scaled(320,290,QtCore.Qt.KeepAspectRatio)
+        self.lblFotoError.setPixmap(pixmapER)
+        self.lblFotoError.move(800,80)
+        self.lblFotoError.hide()  
+        try:
+            f= open('/dev/usb/lp0','w+')
+        except:
+            self.show()
+            print('NO HAY IMPRESOR')
+            self.lblAviso2.setText('         CAJERO FUERA DE SERVICIO....')
+            self.lblAviso3.setText('No se localiza impresor.............')
+            self.borraFotos()
+            self.lblFotoError.show()
+            '''self.timer3.start(7000)
+            self.avisoVoz('cajero.mp3')'''
+            return
+        f.close()
         #==obtengo IP local y numero de empresa integer========================================================
       
         db = sqlite3.connect('atm20.sqlite')
@@ -480,7 +524,7 @@ class Window(QtGui.QWidget):
         self.lblFoto.move(50,450)
      
         #=============================================
-        fontLblAviso2= QtGui.QFont("Arial",34,QtGui.QFont.Bold,False)#========== Renglon # 2 de avisos
+        '''fontLblAviso2= QtGui.QFont("Arial",34,QtGui.QFont.Bold,False)#========== Renglon # 2 de avisos
         self.lblAviso2=QtGui.QLabel(self)
         self.lblAviso2.setFont(fontLblAviso2)
         self.lblAviso2.setPalette(palette)
@@ -492,14 +536,14 @@ class Window(QtGui.QWidget):
         self.lblAviso3.setFont(fontLblAviso3)
         self.lblAviso3.setPalette(palette)
         self.lblAviso3.move(250,535)
-        self.lblAviso3.setText('                                                                   ') 
-        #=============================================
+        self.lblAviso3.setText('                                                                   ') '''
+        '''#=============================================
         fontLblAviso4= QtGui.QFont("Arial",14,QtGui.QFont.Bold,False)#========== Renglon # 4 de avisos
         self.lblAviso4=QtGui.QLabel(self)
         self.lblAviso4.setFont(fontLblAviso4)
         self.lblAviso4.setPalette(palette)
         self.lblAviso4.move(50,570)
-        self.lblAviso4.setText('                                                                   ') 
+        self.lblAviso4.setText('                                                                   ') '''
         
         fontLblEntra= QtGui.QFont("Arial",17,QtGui.QFont.Bold,False)#========== ENTRO EN
         self.lblEntra=QtGui.QLabel(self)
@@ -570,8 +614,8 @@ class Window(QtGui.QWidget):
         self.timer2=QtCore.QTimer(self)
         self.timer2.timeout.connect(self.onEnter)
         self.timer2.start(10)
-        self.timer3=QtCore.QTimer(self)
-        self.timer3.timeout.connect(self.limpiaAvisosDos)
+        '''self.timer3=QtCore.QTimer(self)
+        self.timer3.timeout.connect(self.limpiaAvisosDos)'''
         self.timer4=QtCore.QTimer(self)
         self.timer4.timeout.connect(self.seacabo)
         self.show()
