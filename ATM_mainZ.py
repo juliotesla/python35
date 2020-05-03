@@ -314,6 +314,15 @@ class Window(QtGui.QWidget):
         self.qleCaptura.clear()
         self.qleCaptura2.clear()
         
+    def bitacoraSerLoc(self,atm,err,des,fe,li,mo):
+        conn= psycopg2.connect(dbname="smart" , host=self.IP , port="5432",  user="pi", password="raspberry")
+        cursor=conn.cursor()
+        query="""INSERT INTO bitacora (bcajero,berror,bdescripcion,bfecha,blinea,bmodulo) VALUES (%s,%s,%s,%s,%s,%s)"""
+        values=(atm,err,des,fe,li,mo)
+        cursor.execute(query,values)
+        conn.commit()
+        conn.close()
+        
     def imprimeError(self,atm,err,des,fe,li,mo):
         try:
             f= open('/dev/usb/lp0','w+')
@@ -357,7 +366,19 @@ class Window(QtGui.QWidget):
         f.write(cortaHoja)
         f.write(imprimePag)
         f.close()
+        self.bitacoraSerLoc(atm,err,des,fe,li,mo)# registra el error
         return
+    
+    def buscalocal(self):
+        #==obtengo IP local y numero de empresa integer========================================================
+        db = sqlite3.connect('atm20.sqlite')
+        cursor=db.cursor()
+        cursor.execute("SELECT * FROM datosATM WHERE rowid =1")
+        user1 = cursor.fetchone() #retrieve the first row
+        self.IP=user1[1]
+        self.ATMnum=user1[2]
+        cajero=user1[3]# igual a cajero en tabla atmcaracter
+        db.close()
         
            
     def home(self):
@@ -390,40 +411,16 @@ class Window(QtGui.QWidget):
         self.lblAviso4.setPalette(palette)
         self.lblAviso4.move(50,570)
         self.lblAviso4.setText('                                                                   ') 
-        
-
         self.timer3=QtCore.QTimer(self)
         self.timer3.timeout.connect(self.limpiaAvisosDos)
-        
         self.lblFotoError = QtGui.QLabel(self) 
         pixmapER = QtGui.QPixmap('error.jpg')
         pixmapER = pixmapER.scaled(320,290,QtCore.Qt.KeepAspectRatio)
         self.lblFotoError.setPixmap(pixmapER)
         self.lblFotoError.move(800,80)
         self.lblFotoError.hide()  
-        try:
-            f= open('/dev/usb/lp0','w+')
-        except:
-            self.show()
-            print('NO HAY IMPRESOR')
-            self.lblAviso2.setText('         CAJERO FUERA DE SERVICIO....')
-            self.lblAviso3.setText('No se localiza impresor.............')
-            self.borraFotos()
-            self.lblFotoError.show()
-            '''self.timer3.start(7000)
-            self.avisoVoz('cajero.mp3')'''
-            return
-        f.close()
-        #==obtengo IP local y numero de empresa integer========================================================
-      
-        db = sqlite3.connect('atm20.sqlite')
-        cursor=db.cursor()
-        cursor.execute("SELECT * FROM datosATM WHERE rowid =1")
-        user1 = cursor.fetchone() #retrieve the first row
-        self.IP=user1[1]
-        self.ATMnum=user1[2]
-        cajero=user1[3]# igual a cajero en tabla atmcaracter
-        db.close()
+       
+        self.buscalocal()
         try:
             connLocal = psycopg2.connect(dbname="smart" , host=self.IP , port="5432",  user="pi", password="raspberry")
             cursor=connLocal.cursor()
@@ -454,13 +451,29 @@ class Window(QtGui.QWidget):
             connLocal.close()
         except:
             print('no hay servidor local',self.IP)
-            caj=self.ATMnum+'/'+cajero
+            caj=str(self.ATMnum)+'/'+self.cajero
             self.fechaReal()
             fecha=self.fechaCobro
             self.imprimeError(caj,'001',self.IP,fecha,'375','ATMmainZ')
             return
             
-            
+        try:
+            f= open('/dev/usb/lp0','w+')
+        except:
+            self.show()
+            print('NO HAY IMPRESOR')
+            self.lblAviso2.setText('         CAJERO FUERA DE SERVICIO....')
+            self.lblAviso3.setText('No se localiza impresor.............')
+            self.borraFotos()
+            self.lblFotoError.show()
+            self.buscalocal()
+            self.fechaReal()
+            fecha=self.fechaCobro
+            caj=str(self.ATMnum)+'/'+self.cajero
+            self.bitacoraSerLoc(caj,'002','Impresor',fecha,'461','ATM_mainZ.py')# registra el error
+            return
+        f.close()
+          
       
         #==========================================
         self.lblFoto = QtGui.QLabel(self) #================ foto de tesla
@@ -523,27 +536,6 @@ class Window(QtGui.QWidget):
         self.lblFoto.setPixmap(pixmapT)
         self.lblFoto.move(50,450)
      
-        #=============================================
-        '''fontLblAviso2= QtGui.QFont("Arial",34,QtGui.QFont.Bold,False)#========== Renglon # 2 de avisos
-        self.lblAviso2=QtGui.QLabel(self)
-        self.lblAviso2.setFont(fontLblAviso2)
-        self.lblAviso2.setPalette(palette)
-        self.lblAviso2.move(250,480)
-        self.lblAviso2.setText('                                                                       ')
-        #=============================================
-        fontLblAviso3= QtGui.QFont("Arial",34,QtGui.QFont.Bold,False)#========== Renglon # 3 de avisos
-        self.lblAviso3=QtGui.QLabel(self)
-        self.lblAviso3.setFont(fontLblAviso3)
-        self.lblAviso3.setPalette(palette)
-        self.lblAviso3.move(250,535)
-        self.lblAviso3.setText('                                                                   ') '''
-        '''#=============================================
-        fontLblAviso4= QtGui.QFont("Arial",14,QtGui.QFont.Bold,False)#========== Renglon # 4 de avisos
-        self.lblAviso4=QtGui.QLabel(self)
-        self.lblAviso4.setFont(fontLblAviso4)
-        self.lblAviso4.setPalette(palette)
-        self.lblAviso4.move(50,570)
-        self.lblAviso4.setText('                                                                   ') '''
         
         fontLblEntra= QtGui.QFont("Arial",17,QtGui.QFont.Bold,False)#========== ENTRO EN
         self.lblEntra=QtGui.QLabel(self)
@@ -559,7 +551,6 @@ class Window(QtGui.QWidget):
         self.lblTiempo.setFixedWidth(440)
         self.lblTiempo.move(350,360)
         self.lblTiempo.setFrameStyle(frameStyle)
-       
         #===========================================================
         fontLblBoleto= QtGui.QFont("Arial",18,QtGui.QFont.Bold,False)#========== NUMERO CAPTURADOonEnter
         self.lblBoleto=QtGui.QLabel(self)
@@ -614,19 +605,15 @@ class Window(QtGui.QWidget):
         self.timer2=QtCore.QTimer(self)
         self.timer2.timeout.connect(self.onEnter)
         self.timer2.start(10)
-        '''self.timer3=QtCore.QTimer(self)
-        self.timer3.timeout.connect(self.limpiaAvisosDos)'''
         self.timer4=QtCore.QTimer(self)
         self.timer4.timeout.connect(self.seacabo)
         self.show()
         self.qleCaptura2.hide()
         QtTest.QTest.qWait(1000)
-        #self.avisoVoz('cobrado.mp3')
+        self.yafueleido()
         print('ya..')
         #self.imprimePase()
-        '''self.teclado()
-        QtTest.QTest.qWait(5000)
-        self.borraTeclado()'''
+      
  
     def seacabo(self):
         print('paso un minuto')
@@ -1380,6 +1367,15 @@ class Window(QtGui.QWidget):
             f= open('/dev/usb/lp0','w+')
         except:
             print('NO HAY IMPRESOR')
+            self.lblAviso2.setText('         CAJERO FUERA DE SERVICIO....')
+            self.lblAviso3.setText('No se localiza impresor.............')
+            self.borraFotos()
+            self.lblFotoError.show()
+            self.buscalocal()
+            self.fechaReal()
+            fecha=self.fechaCobro
+            caj=str(self.ATMnum)+'/'+self.cajero
+            self.bitacoraSerLoc(caj,'002','Impresor',fecha,'1371','ATM_mainZ.py')# registra el error
             return
         connLocal = psycopg2.connect(dbname="smart" , host=self.IP , port="5432",  user="pi", password="raspberry")
         cursor=connLocal.cursor()
