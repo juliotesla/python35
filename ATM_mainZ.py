@@ -9,7 +9,7 @@ import sqlite3
 import pyautogui
 import subprocess
 import RPi.GPIO as GPIO
-#============================================ ATM_main  mayo 2  2020   =======
+#============================================ ATM_main  mayo 4  2020   =======
 # git config --global user.name 'juliotesla'
 # git config --global user.email'flojulio@gmail.com'
 # git config credential.helper  store
@@ -378,7 +378,7 @@ class Window(QtGui.QWidget):
         user1 = cursor.fetchone() #retrieve the first row
         self.IP=user1[1]
         self.ATMnum=user1[2]
-        cajero=user1[3]# igual a cajero en tabla atmcaracter
+        self.cajero=user1[3]# igual a cajero en tabla atmcaracter
         db.close()
         try:
             connLocal = psycopg2.connect(dbname="smart" , host=self.IP , port="5432",  user="pi", password="raspberry")
@@ -404,13 +404,13 @@ class Window(QtGui.QWidget):
             self.rego=self.rego[0:4]
             self.fechaturno=self.fechaturno[6:10]
             self.tipoCambio=user1[7]
-            self.cajero=user1[1]
+            #self.cajero=user1[1]
             folioBolcorte=user1[14]
             self.alfafolCorte='%05d' % folioBolcorte
             connLocal.close()
         except:
             print('no hay servidor local',self.IP)
-            caj=self.ATMnum+'/'+cajero
+            caj=self.ATMnum+'/'+self.cajero
             self.fechaReal()
             fecha=self.fechaCobro
             self.imprimeError(caj,'001',self.IP,fecha,'375','ATMmainZ')
