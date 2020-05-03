@@ -15,7 +15,8 @@ import RPi.GPIO as GPIO
 # git config credential.helper  store
 # git config --global credential.helper store
 # git clone https://github.com/juliotesla/python35.git
-
+# errores
+# 001 NO HAY SERVIDOR
 
 
 class Window(QtGui.QWidget):
@@ -139,11 +140,13 @@ class Window(QtGui.QWidget):
         #print(self.cualBoton,' es el boton')
         self.timer1.start(1000)
         self.qleCaptura.setFocus()
+        f.write(imprimePag)
 
     def elLimpiar(self):
         self.qleCaptura.setFocus()
         self.qleCaptura.clear()
-        self.qleCaptura2.clear()    
+        self.qleCaptura2.clear()
+        
     def teclado(self):
         fontButton = QtGui.QFont("Arial",40,QtGui.QFont.Bold,True)# ======Botones
         self.btUno=QtGui.QPushButton(self)
@@ -311,6 +314,51 @@ class Window(QtGui.QWidget):
         self.qleCaptura.clear()
         self.qleCaptura2.clear()
         
+    def imprimeError(self,atm,err,des,fe,li,mo):
+        try:
+            f= open('/dev/usb/lp0','w+')
+        except:
+            print('NO HAY IMPRESOR')
+            return
+        pc00=chr(27)+'PC00;0100,0042,1,2,2,00,01'+chr(10)+chr(0)
+        pc01=chr(27)+'PC01;0100,0112,1,2,2,00,01'+chr(10)+chr(0)
+        pc02=chr(27)+'PC02;0100,0192,1,2,2,00,01'+chr(10)+chr(0)
+        pc03=chr(27)+'PC03;0100,0272,1,2,2,00,01'+chr(10)+chr(0)
+        pc04=chr(27)+'PC04;0100,0352,1,2,2,00,01'+chr(10)+chr(0)
+        pc05=chr(27)+'PC05;0100,0432,1,2,2,00,01'+chr(10)+chr(0)
+        pc06=chr(27)+'PC06;0100,0592,1,2,2,00,01'+chr(10)+chr(0)
+        rc00=chr(27)+'RC00;CAJERO...: '+atm+chr(10)+chr(0)
+        rc01=chr(27)+'RC01;EVENTO # : '+err+chr(10)+chr(0)
+        rc02=chr(27)+'RC02;EVENTO ..: '+des+chr(10)+chr(0)
+        rc03=chr(27)+'RC03;FECHA....: '+fe+chr(10)+chr(0)
+        rc04=chr(27)+'RC04;LINEA....: '+li+chr(10)+chr(0)
+        rc05=chr(27)+'RC05;MODULO...: '+mo+chr(10)+chr(0)
+        rc06=chr(27)+'RC06;REPORTE PARA SMARTICKET..'+chr(10)+chr(0)
+        printArea=chr(27)+'D0900'+chr(10)+chr(0)
+        imprimePag=chr(27)+chr(73)+chr(10)+chr(0)
+        cortaHoja=chr(27)+chr(66)+chr(10)+chr(0)
+        limpiaMem=chr(27)+chr(67)+chr(10)+chr(0)
+        f.write(limpiaMem)
+        f.write(printArea)
+        f.write(pc00)
+        f.write(pc01)
+        f.write(pc02)
+        f.write(pc03)
+        f.write(pc04)
+        f.write(pc05)
+        f.write(pc06)
+        f.write(rc00)
+        f.write(rc01)
+        f.write(rc02)
+        f.write(rc03)
+        f.write(rc04)
+        f.write(rc05)
+        f.write(rc06)
+        f.write(cortaHoja)
+        f.write(imprimePag)
+        f.close()
+        return
+        
            
     def home(self):
       
@@ -330,34 +378,46 @@ class Window(QtGui.QWidget):
         user1 = cursor.fetchone() #retrieve the first row
         self.IP=user1[1]
         self.ATMnum=user1[2]
+        cajero=user1[3]# igual a cajero en tabla atmcaracter
         db.close()
-        connLocal = psycopg2.connect(dbname="smart" , host=self.IP , port="5432",  user="pi", password="raspberry")
-        cursor=connLocal.cursor()
-        sql="SELECT * FROM atmcaracter WHERE indice={}".format(self.ATMnum)
-        cursor.execute(sql)
-        user1=cursor.fetchone()
-        folio=user1[17]
-        serie='No.serie '+user1[17]
-        boletoTitle=user1[1]
-        empresa=user1[2]
-        f= os.popen('ifconfig wlan0 | grep "inet 192" | cut -c 13-26')
-        mifeT=f.read()
-        mife=mifeT[0:14]
-        titulo=empresa+'  CAJERO # '+boletoTitle+'  2020    '+mife
-        self.setWindowTitle(titulo)
-        #print(user1[9])
-        self.closed=user1[20]
-        self.fechaturno=user1[9]
-        self.supervisor=user1[21]
-        self.operador=user1[15]
-        self.rego=user1[9]
-        self.rego=self.rego[0:4]
-        self.fechaturno=self.fechaturno[6:10]
-        self.tipoCambio=user1[7]
-        self.cajero=user1[1]
-        folioBolcorte=user1[14]
-        self.alfafolCorte='%05d' % folioBolcorte
-        connLocal.close()
+        try:
+            connLocal = psycopg2.connect(dbname="smart" , host=self.IP , port="5432",  user="pi", password="raspberry")
+            cursor=connLocal.cursor()
+            sql="SELECT * FROM atmcaracter WHERE indice={}".format(self.ATMnum)
+            cursor.execute(sql)
+            user1=cursor.fetchone()
+            folio=user1[17]
+            serie='No.serie '+user1[17]
+            boletoTitle=user1[1]
+            empresa=user1[2]
+            f= os.popen('ifconfig wlan0 | grep "inet 192" | cut -c 13-26')
+            mifeT=f.read()
+            mife=mifeT[0:14]
+            titulo=empresa+'  CAJERO # '+boletoTitle+'  2020    '+mife
+            self.setWindowTitle(titulo)
+            #print(user1[9])
+            self.closed=user1[20]
+            self.fechaturno=user1[9]
+            self.supervisor=user1[21]
+            self.operador=user1[15]
+            self.rego=user1[9]
+            self.rego=self.rego[0:4]
+            self.fechaturno=self.fechaturno[6:10]
+            self.tipoCambio=user1[7]
+            self.cajero=user1[1]
+            folioBolcorte=user1[14]
+            self.alfafolCorte='%05d' % folioBolcorte
+            connLocal.close()
+        except:
+            print('no hay servidor local',self.IP)
+            caj=self.ATMnum+'/'+cajero
+            self.fechaReal()
+            fecha=self.fechaCobro
+            self.imprimeError(caj,'001',self.IP,fecha,'375','ATMmainZ')
+            return
+            
+            
+      
         #==========================================
         self.lblFoto = QtGui.QLabel(self) #================ foto de tesla
         self.lblFotoTesla = QtGui.QLabel(self) 
