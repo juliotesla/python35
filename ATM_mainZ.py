@@ -9,7 +9,7 @@ import sqlite3
 import pyautogui
 import subprocess
 import RPi.GPIO as GPIO
-#============================================ ATM_main  mayo 4  2020   =======
+#============================================ ATM_main  mayo 3 2020   =======
 # git config --global user.name 'juliotesla'
 # git config --global user.email'flojulio@gmail.com'
 # git config credential.helper  store
@@ -59,6 +59,7 @@ class Window(QtGui.QWidget):
         self.valorPase=''
         self.boletoRecibo=''
         self.IP='192.168.100.10'
+        self.modulo='ATM_mainZ.py'
         self.chava='Y'
         self.envio='N'
         self.pase='--------'
@@ -72,10 +73,10 @@ class Window(QtGui.QWidget):
         self.boletoAnt=''
         GPIO.setmode(GPIO.BCM)
         GPIO.setwarnings(False)
-        GPIO.setup(12,GPIO.OUT)# abre barrera salida
-        GPIO.setup(24,GPIO.OUT)# gaveta
-        GPIO.setup(25,GPIO.OUT)
-        GPIO.setup(23,GPIO.OUT)# ABRE BARRERA DE ENTRADA
+        GPIO.setup(12,GPIO.OUT)
+        GPIO.setup(24,GPIO.OUT)# cancela boleto
+        GPIO.setup(25,GPIO.OUT)# en proceso
+        GPIO.setup(23,GPIO.OUT)# boleto validado
         GPIO.setup(17, GPIO.IN, pull_up_down=GPIO.PUD_UP)# loop detector
         GPIO.setup(22, GPIO.IN, pull_up_down=GPIO.PUD_UP)# paso boleto
         GPIO.setup(18, GPIO.IN, pull_up_down=GPIO.PUD_UP)# boleto presente( arriba)
@@ -314,7 +315,24 @@ class Window(QtGui.QWidget):
         self.qleCaptura.clear()
         self.qleCaptura2.clear()
         
-    def imprimeError(self,atm,err,des,fe,li,mo):
+    def bitacoraSerLoc(self,err,des,li):
+        caj=str(self.ATMnum)+'/'+self.cajero
+        self.fechaReal()
+        fe=self.fechaCobro
+        mo=self.modulo
+        conn= psycopg2.connect(dbname="smart" , host=self.IP , port="5432",  user="pi", password="raspberry")
+        cursor=conn.cursor()
+        query="""INSERT INTO bitacora (bcajero,berror,bdescripcion,bfecha,blinea,bmodulo) VALUES (%s,%s,%s,%s,%s,%s)"""
+        values=(caj,err,des,fe,li,mo)
+        cursor.execute(query,values)
+        conn.commit()
+        conn.close()
+        
+    def imprimeError(self,bita,err,des,li):
+        caj=str(self.ATMnum)+'/'+self.cajero
+        self.fechaReal()
+        fe=self.fechaCobro
+        mo=self.modulo
         try:
             f= open('/dev/usb/lp0','w+')
         except:
@@ -327,7 +345,7 @@ class Window(QtGui.QWidget):
         pc04=chr(27)+'PC04;0100,0352,1,2,2,00,01'+chr(10)+chr(0)
         pc05=chr(27)+'PC05;0100,0432,1,2,2,00,01'+chr(10)+chr(0)
         pc06=chr(27)+'PC06;0100,0592,1,2,2,00,01'+chr(10)+chr(0)
-        rc00=chr(27)+'RC00;CAJERO...: '+atm+chr(10)+chr(0)
+        rc00=chr(27)+'RC00;CAJERO...: '+caj+chr(10)+chr(0)
         rc01=chr(27)+'RC01;EVENTO # : '+err+chr(10)+chr(0)
         rc02=chr(27)+'RC02;EVENTO ..: '+des+chr(10)+chr(0)
         rc03=chr(27)+'RC03;FECHA....: '+fe+chr(10)+chr(0)
@@ -357,8 +375,32 @@ class Window(QtGui.QWidget):
         f.write(cortaHoja)
         f.write(imprimePag)
         f.close()
+        if bita=='S':
+            self.bitacoraSerLoc(caj,err,des,fe,li,mo)# registra el error
         return
-        
+    
+    def buscalocal(self):
+        #==obtengo IP local y numero de empresa integer========================================================
+        db = sqlite3.connect('atm20.sqlite')
+        cursor=db.cursor()
+        cursor.execute("SELECT * FROM datosATM WHERE rowid =1")
+        user1 = cursor.fetchone() #retrieve the first row
+        self.IP=user1[1]
+        self.ATMnum=user1[2]
+        cajero=user1[3]# igual a cajero en tabla atmcaracter
+        db.close()
+
+    def esperando(self,t):
+        while(t):
+            mins,secs =divmod(t,60)
+            timeformat= '{:2d}:{:2d}'.format(mins,secs)
+            self.lblAviso2.setText(timeformat)
+            print(timeformat,end='\r')
+            self.repaint()
+            self.update()
+            time.sleep(1)
+            t -=1
+            
            
     def home(self):
       
@@ -380,7 +422,41 @@ class Window(QtGui.QWidget):
         self.ATMnum=user1[2]
         self.cajero=user1[3]# igual a cajero en tabla atmcaracter
         db.close()
+
+        #=============================================
+        fontLblAviso2= QtGui.QFont("Arial",34,QtGui.QFont.Bold,False)#========== Renglon # 2 de avisos
+        self.lblAviso2=QtGui.QLabel(self)
+        self.lblAviso2.setFont(fontLblAviso2)
+        self.lblAviso2.setPalette(palette)
+        self.lblAviso2.move(250,480)
+        self.lblAviso2.setText('                                                                       ')
+        #=============================================
+        fontLblAviso3= QtGui.QFont("Arial",34,QtGui.QFont.Bold,False)#========== Renglon # 3 de avisos
+        self.lblAviso3=QtGui.QLabel(self)
+        self.lblAviso3.setFont(fontLblAviso3)
+        self.lblAviso3.setPalette(palette)
+        self.lblAviso3.move(250,535)
+        self.lblAviso3.setText('                                                                   ') 
+        #=============================================
+        fontLblAviso4= QtGui.QFont("Arial",14,QtGui.QFont.Bold,False)#========== Renglon # 4 de avisos
+        self.lblAviso4=QtGui.QLabel(self)
+        self.lblAviso4.setFont(fontLblAviso4)
+        self.lblAviso4.setPalette(palette)
+        self.lblAviso4.move(50,570)
+        self.lblAviso4.setText('                                                                   ') 
+        self.timer3=QtCore.QTimer(self)
+        self.timer3.timeout.connect(self.limpiaAvisosDos)
+        self.lblFotoError = QtGui.QLabel(self) 
+        pixmapER = QtGui.QPixmap('error.jpg')
+        pixmapER = pixmapER.scaled(320,290,QtCore.Qt.KeepAspectRatio)
+        self.lblFotoError.setPixmap(pixmapER)
+        self.lblFotoError.move(800,80)
+        self.lblFotoError.hide()  
+       
+        self.buscalocal()
+
         try:
+            print('buscando red......')
             connLocal = psycopg2.connect(dbname="smart" , host=self.IP , port="5432",  user="pi", password="raspberry")
             cursor=connLocal.cursor()
             sql="SELECT * FROM atmcaracter WHERE indice={}".format(self.ATMnum)
@@ -410,13 +486,25 @@ class Window(QtGui.QWidget):
             connLocal.close()
         except:
             print('no hay servidor local',self.IP)
-            caj=self.ATMnum+'/'+self.cajero
-            self.fechaReal()
-            fecha=self.fechaCobro
-            self.imprimeError(caj,'001',self.IP,fecha,'375','ATMmainZ')
+            #print('fecha {}'.format(fecha))
+            bita='N'# que no registre en bitacora
+            self.imprimeError(bita,'001',self.IP,'375')
             return
             
-            
+        try:
+            f= open('/dev/usb/lp0','w+')
+        except:
+            self.show()
+            print('NO HAY IMPRESOR')
+            self.lblAviso2.setText('         CAJERO FUERA DE SERVICIO....')
+            self.lblAviso3.setText('No se localiza impresor.............')
+            self.borraFotos()
+            self.lblFotoError.show()
+            self.buscalocal()
+            self.bitacoraSerLoc('002','Impresor','461')# registra el error
+            return
+        f.close()
+          
       
         #==========================================
         self.lblFoto = QtGui.QLabel(self) #================ foto de tesla
@@ -479,27 +567,6 @@ class Window(QtGui.QWidget):
         self.lblFoto.setPixmap(pixmapT)
         self.lblFoto.move(50,450)
      
-        #=============================================
-        fontLblAviso2= QtGui.QFont("Arial",34,QtGui.QFont.Bold,False)#========== Renglon # 2 de avisos
-        self.lblAviso2=QtGui.QLabel(self)
-        self.lblAviso2.setFont(fontLblAviso2)
-        self.lblAviso2.setPalette(palette)
-        self.lblAviso2.move(250,480)
-        self.lblAviso2.setText('                                                                       ')
-        #=============================================
-        fontLblAviso3= QtGui.QFont("Arial",34,QtGui.QFont.Bold,False)#========== Renglon # 3 de avisos
-        self.lblAviso3=QtGui.QLabel(self)
-        self.lblAviso3.setFont(fontLblAviso3)
-        self.lblAviso3.setPalette(palette)
-        self.lblAviso3.move(250,535)
-        self.lblAviso3.setText('                                                                   ') 
-        #=============================================
-        fontLblAviso4= QtGui.QFont("Arial",14,QtGui.QFont.Bold,False)#========== Renglon # 4 de avisos
-        self.lblAviso4=QtGui.QLabel(self)
-        self.lblAviso4.setFont(fontLblAviso4)
-        self.lblAviso4.setPalette(palette)
-        self.lblAviso4.move(50,570)
-        self.lblAviso4.setText('                                                                   ') 
         
         fontLblEntra= QtGui.QFont("Arial",17,QtGui.QFont.Bold,False)#========== ENTRO EN
         self.lblEntra=QtGui.QLabel(self)
@@ -515,7 +582,6 @@ class Window(QtGui.QWidget):
         self.lblTiempo.setFixedWidth(440)
         self.lblTiempo.move(350,360)
         self.lblTiempo.setFrameStyle(frameStyle)
-       
         #===========================================================
         fontLblBoleto= QtGui.QFont("Arial",18,QtGui.QFont.Bold,False)#========== NUMERO CAPTURADOonEnter
         self.lblBoleto=QtGui.QLabel(self)
@@ -569,20 +635,17 @@ class Window(QtGui.QWidget):
         self.timer1.start(1000)
         self.timer2=QtCore.QTimer(self)
         self.timer2.timeout.connect(self.onEnter)
-        self.timer2.start(10)
-        self.timer3=QtCore.QTimer(self)
-        self.timer3.timeout.connect(self.limpiaAvisosDos)
         self.timer4=QtCore.QTimer(self)
         self.timer4.timeout.connect(self.seacabo)
         self.show()
         self.qleCaptura2.hide()
         QtTest.QTest.qWait(1000)
-        #self.avisoVoz('cobrado.mp3')
+        self.yafueleido()
+        self.timer2.start(10)
         print('ya..')
         #self.imprimePase()
-        '''self.teclado()
-        QtTest.QTest.qWait(5000)
-        self.borraTeclado()'''
+        
+      
  
     def seacabo(self):
         print('paso un minuto')
@@ -618,14 +681,18 @@ class Window(QtGui.QWidget):
     def regresalo(self):
         GPIO.output(24,False)
         self.yafueleido()
-        QtTest.QTest.qWait(1000)
+        QtTest.QTest.qWait(100)
         GPIO.output(24,True)
+        GPIO.output(25,True)
+        self.timer4.stop()
         
     def aceptado(self):
         GPIO.output(23,False)
         self.yafueleido()
-        QtTest.QTest.qWait(1000)
+        QtTest.QTest.qWait(100)
         GPIO.output(23,True)
+        GPIO.output(25,True)
+        self.timer4.stop()
 
     def yafueleido(self):
         a='111111111'
@@ -640,6 +707,7 @@ class Window(QtGui.QWidget):
     def onEnter(self):
         #print('es enter {}'.format(self.IP))
         GPIO.output(23,True)
+        GPIO.output(25,False)
         try:
             connLocal = psycopg2.connect(dbname="smart" , host=self.IP , port="5432",  user="pi", password="raspberry")
             cursor=connLocal.cursor()
@@ -649,17 +717,22 @@ class Window(QtGui.QWidget):
             user1=cursor.fetchone()
             #print(user1[0])
         except:
-            print('no hay red hh')
+            print('no hay servidor local',self.IP)
+            #print('fecha {}'.format(fecha))
+            bita='N'# que no registre en bitacora
+            self.imprimeError(bita,'001',self.IP,'707')
+            self.regresalo()
             return
-            
+           
         if user1[0]=='111111111':
             connLocal.close()
             return
-       
+        self.timer2.stop()
         inputNumber= user1[0]
+        self.yafueleido()
+        self.timer2.start(10)
         self.lblAviso.clear()
         self.tecBuffer=inputNumber.lstrip()
-        GPIO.output(25,False)
         if self.tecBuffer[0:3]=='088':
             connLocal2 = psycopg2.connect(dbname="smart" , host=self.IP , port="5432",  user="pi", password="raspberry")
             cursor1=connLocal2.cursor()
@@ -677,6 +750,7 @@ class Window(QtGui.QWidget):
                  self.regresalo()
                  self.timer3.start(7000)
                  self.avisoVoz('valido.mp3')
+                
                  return
                 
             if len(user2[1])==9:
@@ -718,9 +792,11 @@ class Window(QtGui.QWidget):
             self.regresalo()
             self.timer3.start(7000)
             self.avisoVoz('adelanta.mp3')
+            self.yafueleido()
             return
       
         if self.repetido(self.tecBuffer[0:10]):
+            self.tecBuffer=' '
             self.lblAviso2.setText('                  YA COBRADO')
             self.lblAviso3.setText('Este boleto {}  ya fue cobrado'.format(self.elRepetido))
             self.borraFotos()
@@ -729,6 +805,7 @@ class Window(QtGui.QWidget):
             self.regresalo()
             self.timer3.start(7000)
             self.avisoVoz('cobrado.mp3')
+            self.yafueleido()
             return
         
         if minutosNow-self.minutosBoleto>21600:
@@ -740,6 +817,7 @@ class Window(QtGui.QWidget):
             self.regresalo()
             self.timer3.start(7000)
             self.avisoVoz('limite.mp3')
+            self.yafueleido()
             return
         print('minutos..',self.minutosBoleto)
         if numeroBoleto==self.boletoAnt:
@@ -1026,11 +1104,12 @@ class Window(QtGui.QWidget):
             cursor.execute("UPDATE atmventas SET atmesbol='B' WHERE atmesbol='P' and atmnumbol!=%s",[az])
             conn.commit()
             conn.close()
-            self.aceptado()
+            #self.aceptado()
             self.bolValidado=''
             self.lblAviso.setText('VALIDADO')
             self.imprimePase()
-            GPIO.output(25,True)
+            self.yafueleido()
+           
         if self.seleccion == '321':#=========================================BORRA BASE DE DATOS=============================
             xxpp='2100000000'
             conn= psycopg2.connect(dbname="smart" , host=self.IP , port="5432",  user="pi", password="raspberry")
@@ -1059,12 +1138,21 @@ class Window(QtGui.QWidget):
     #==============graba operacion en archivo 'ventas'==================       
     def grabaVentas(self,statu):
         global sinCobro
-        conn= psycopg2.connect(dbname="smart" , host=self.IP , port="5432",  user="pi", password="raspberry")
-        cursor=conn.cursor()
-        az=self.nuBoletoCompleto
-        cursor.execute("DELETE FROM atmventas WHERE atmesbol='P' and atmnumbol=%s",[az])
-        conn.commit()
-        conn.close()
+        try:
+            conn= psycopg2.connect(dbname="smart" , host=self.IP , port="5432",  user="pi", password="raspberry")
+            cursor=conn.cursor()
+            az=self.nuBoletoCompleto
+            cursor.execute("DELETE FROM atmventas WHERE atmesbol='P' and atmnumbol=%s",[az])
+            conn.commit()
+            conn.close()
+        except:
+            print('no hay servidor local',self.IP)
+            #print('fecha {}'.format(fecha))
+            bita='N'# que no registre en bitacora
+            self.imprimeError(bita,'001',self.IP,'1135')
+            self.regresalo()
+            return
+            
         esboleto=statu
         if len(self.entraFecha)<4:
             self.anos=''
@@ -1320,7 +1408,16 @@ class Window(QtGui.QWidget):
         conn.commit()
         conn.close()
     
- 
+    #======================================= CANCELA OPERACION =====================
+    def cancela(self,az):
+        conn= psycopg2.connect(dbname="smart" , host=self.IP , port="5432",  user="pi", password="raspberry")
+        cursor=conn.cursor()
+        #az=self.nuBoletoCompleto
+        cursor.execute("DELETE FROM atmventas WHERE  atmnumbol=%s",[az])
+        conn.commit()
+        conn.close()
+        self.regresalo()
+        print('se cancela ',az)
     #======================= VALIDACION ====================================================
     def validacion(self):
         GPIO.output(23,True)
@@ -1336,7 +1433,16 @@ class Window(QtGui.QWidget):
             f= open('/dev/usb/lp0','w+')
         except:
             print('NO HAY IMPRESOR')
+            self.lblAviso2.setText('         CAJERO FUERA DE SERVICIO....')
+            self.lblAviso3.setText('No se localiza impresor.............')
+            self.borraFotos()
+            self.lblFotoError.show()
+            self.buscalocal()
+            self.bitacoraSerLoc('002','Impresor','1371')# registra el error
+            bol=self.boletoPase
+            self.cancela(bol)
             return
+        self.aceptado()
         connLocal = psycopg2.connect(dbname="smart" , host=self.IP , port="5432",  user="pi", password="raspberry")
         cursor=connLocal.cursor()
         sql="SELECT * FROM atmcaracter WHERE indice={}".format(self.ATMnum)
