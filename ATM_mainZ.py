@@ -9,7 +9,7 @@ import sqlite3
 import pyautogui
 import subprocess
 import RPi.GPIO as GPIO
-#============================================ ATM_main  mayo 3 2020   =======
+#============================================ ATM_main  mayo 4 2020   =======
 # git config --global user.name 'juliotesla'
 # git config --global user.email'flojulio@gmail.com'
 # git config credential.helper  store
